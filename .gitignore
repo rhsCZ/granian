@@ -1,2 +1,3 @@
 granian_*.build
 granian-src/debian/files
+**.upload
