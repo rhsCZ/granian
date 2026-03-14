@@ -1,0 +1,26 @@
+[Unit]
+Description=Granian application server
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=granian
+Group=granian
+WorkingDirectory=/var/lib/granian
+EnvironmentFile=-/etc/default/granian
+ExecStart=/usr/sbin/granian-wrapper
+ExecStartPre=/usr/sbin/granian-wrapper --check
+Restart=on-failure
+RestartSec=2s
+RuntimeDirectory=granian
+StateDirectory=granian
+LogsDirectory=granian
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/granian /var/log/granian /run/granian /etc/granian/apps-enabled
+
+[Install]
+WantedBy=multi-user.target

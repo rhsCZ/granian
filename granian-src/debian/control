@@ -1,0 +1,17 @@
+Source: granian
+Section: net
+Priority: optional
+Maintainer: Codex <codex@example.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+
+Package: granian
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}, python3-granian, adduser
+Description: multi-application systemd supervisor for python3-granian
+ Small native supervisor for the Granian Python HTTP server.
+ .
+ It reads global defaults from /etc/granian, loads each enabled application
+ from apps-enabled, and starts one upstream /usr/bin/granian process per app
+ under a single systemd service.

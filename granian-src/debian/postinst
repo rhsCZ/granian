@@ -1,0 +1,23 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        if ! getent group granian >/dev/null; then
+            addgroup --system granian
+        fi
+        if ! getent passwd granian >/dev/null; then
+            adduser \
+                --system \
+                --ingroup granian \
+                --home /var/lib/granian \
+                --no-create-home \
+                --disabled-login \
+                --disabled-password \
+                --gecos "Granian service user" \
+                granian
+        fi
+    ;;
+esac
+
+#DEBHELPER#

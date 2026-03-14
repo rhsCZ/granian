@@ -1,0 +1,3 @@
+# Global environment overrides for the granian supervisor.
+# Example:
+# PYTHONPATH=/srv/apps/common
