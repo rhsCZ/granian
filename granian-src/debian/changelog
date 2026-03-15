@@ -1,3 +1,10 @@
+granian (1.0.3) noble; urgency=medium
+
+  * Disable service restarts as part of package upgrades.
+  * Ship the example application config only in apps-available.
+
+ -- Jan Hodouš <rhscz@post.cz>  Sun, 15 Mar 2026 11:30:00 +0100
+
 granian (1.0.2) noble; urgency=medium
 
   * Improve package upgrade behavior.
