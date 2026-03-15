@@ -45,6 +45,12 @@ Rules:
 - `working-directory=` changes cwd only for that app process.
 - `venv=` activates the given Python virtualenv for that app process. If
   `venv/bin/granian` exists, it is used instead of `/usr/bin/granian`.
+- `websockets=` is translated to Granian's `--ws` / `--no-ws`.
+- `restart-limit=`, `restart-window=` and `restart-delay=` prevent infinite
+  crash loops; after too many failures in the configured window, the app is
+  left disabled until the service is restarted.
+- app stdout/stderr are written to `/var/log/granian/<app>.log` by default,
+  with optional `log-file=` and `error-log-file=` overrides.
 - Other keys are converted to Granian CLI options (`workers=4` ->
   `--workers 4`).
 - Boolean values become `--key` or `--no-key`.
@@ -53,7 +59,9 @@ Rules:
 
 The package ships one `granian.service` systemd unit using the dedicated
 `granian` system user. The supervisor restarts failed child apps and stops all
-children when the unit is stopped.
+children when the unit is stopped, logs supervisor output to
+`/var/log/granian/supervisor.log`, and installs `logrotate` config for the log
+files under `/var/log/granian`.
 
 Admin helpers:
 

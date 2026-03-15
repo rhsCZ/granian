@@ -4,16 +4,16 @@ Hash: SHA512
 Format: 1.0
 Source: granian
 Architecture: source
-Version: 1.0.0
+Version: 1.0.1
 Checksums-Md5:
- 5fe91c54735d6df55f58d47a0c16473c 1381 granian_1.0.0.dsc
+ 0fe74c4ccb199cf1d8e7d66d52019a05 1381 granian_1.0.1.dsc
 Checksums-Sha1:
- 3aaa9ac2e49f1cd082412c752e1b5b564d29878e 1381 granian_1.0.0.dsc
+ 3611c8eef9c8c030829ef7b041bf2d090074fdf0 1381 granian_1.0.1.dsc
 Checksums-Sha256:
- 1e536aea7dc3cdc24c1dc0e4eff89873aa0cc7d88670e22e5edc30eb1eb943ec 1381 granian_1.0.0.dsc
+ e42b2cea6ba27bde39bd6e6b4edf74ff243df3abcb246b152924905acffc6dc0 1381 granian_1.0.1.dsc
 Build-Origin: Ubuntu
 Build-Architecture: amd64
-Build-Date: Sat, 14 Mar 2026 23:16:32 +0100
+Build-Date: Sun, 15 Mar 2026 09:51:27 +0100
 Build-Tainted-By:
  merged-usr-via-aliased-dirs
  usr-local-has-libraries
@@ -184,21 +184,21 @@ Environment:
  DEB_BUILD_OPTIONS="parallel=8"
  DEB_BUILD_PROFILES="noudeb"
  LANG="C.UTF-8"
- SOURCE_DATE_EPOCH="1773521400"
+ SOURCE_DATE_EPOCH="1773564600"
 
 -----BEGIN PGP SIGNATURE-----
 
-iQIzBAEBCgAdFiEEBA4y7RgfpWqP10UabjGunhICqWAFAmm13kEACgkQbjGunhIC
-qWDtYA//eTDgKm4DH49Iqco305xzcsNGifeY/eleTxQPNW5IsbOez7qW+B0W3ic2
-MDIAHZwiwRSYqXVFqo55UAuprVkPM47GzNhs9oFReSWi9nQiQim0XMWFA0YPZmxJ
-qopIvE0CJaBZ2HdjjAoZXfMjxIVtyC5Vnn7pckX3SEXJF7cM9/WezEEYARt3bAEQ
-GtuMgpgH+Aj9YH91fy8iH5HP7z/FImshTjSLLxWOvjuVsxqWHFbYPr83s0ijsJO3
-6AOZABmz3YSBa+7VkIFlM7gniSvrns6ka4/vWu7idOIxhqKlS8fV9YrNub8oeLB0
-X6kS9/9s3VwCXwY6zbp/8BggL2w3VpV1lAXm4rEHfo4sEHsbXnhv2nVScLHqFruI
-7JZIWDpkphimf01Pm4m5ByjdB790QxWUNe3IuEd2ge3U5V7N6cVmpEMdTk5Tm0g/
-A1kT3pVFP+gMt6Rt6hkSFRhJW4rb76YVVnUIMqnrK31XMH7iHUujOupVOtpu7BWj
-uucZxAWbz8XQTixyi7GrtRePDPgYifa+iu9uWEDbSCjXvIKwcEj0roJg7mWbDUvL
-anp3CZJScr+pl6d7zL+/p9R2cMfQDGX0uhZdhRNgZ/6zrgrA/Y0J574/UDS9hI9R
-VfvKGL0d9a2Jdqj6K9PAGYvtNg6q3hRAXx344rSsYBanY++WD1Q=
-=VPuI
+iQIzBAEBCgAdFiEEBA4y7RgfpWqP10UabjGunhICqWAFAmm2cyYACgkQbjGunhIC
+qWDW2Q//afEEr5Jpo+W5VYpncevG/K0OtqiaNCMcjriGOC7VY4y7oBw/DAfB66Jo
+xEpk1t3BkhaNw4Uqky5umNHPcRoMUWnPQJVmW/JCtwQ2lnBtQVk7rw3fTzaC0bsv
+dQKe+svZWbcClZ8kOFeGiw2uBI3PHsQaRdLYKFebWlSjzAHJvvlJJIOzN8FTfnQI
+LSLlekQfpX/b08+tzQmLTftnvoceYTPfD7VuCje74PNtGlnxWB7311a7fpJ1Tw3j
+DGtCixJ6MzDM/YN3uqwAZUYOOH8qXYgXOTc77BV2gVvk3ARqMMZFzvcVs0/3/udi
+7mv4rA4UYSRYFYsnYLa0hSYWVjg8y+zu7/BK2fjdKMW7fGHmf49aceR7suqfn5Hj
+xFkRRcO5JxGcnCuVuusyToqjEO+JyjCx+FfD29va34qiwtgB3Pvh4y5eTCvrs9aa
+/PLmoQP8GB+DvJgO2v1L6/aeyjBn4e9akEL4oLGDZB09jM7dSCfc4Fv/Et5wsj4/
+QgEO5NALs1ZuAdyW2mAYDk0RQQOIzn+IZJ3sommpmAvZUZx3ssMpkraOaeuDx7ht
+l+UD9wx9FvzyV2Bzc48OEZqQ+wmRhYBcNjTl+vve76WZfF80mjBhGkgpYD2DVlhr
+vr8LMcbfue0YDzb8D7rxwiJ4AKFxZhSln1We6gP45QAO/lgeQnM=
+=4LM0
 -----END PGP SIGNATURE-----

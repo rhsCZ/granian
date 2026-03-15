@@ -13,13 +13,12 @@ ExecStart=/usr/sbin/granian-wrapper
 ExecStartPre=/usr/sbin/granian-wrapper --check
 Restart=on-failure
 RestartSec=2s
+StandardOutput=append:/var/log/granian/supervisor.log
+StandardError=append:/var/log/granian/supervisor.log
 RuntimeDirectory=granian
 StateDirectory=granian
 LogsDirectory=granian
 NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
 ReadWritePaths=/var/lib/granian /var/log/granian /run/granian /etc/granian/apps-enabled
 
 [Install]

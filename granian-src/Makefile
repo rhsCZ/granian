@@ -56,6 +56,8 @@ install: $(TARGETS)
 	install -d $(DESTDIR)$(SYSCONFDIR)/default
 	install -m 0644 packaging/default-granian $(DESTDIR)$(SYSCONFDIR)/default/granian
 	install -m 0644 packaging/example-app.conf $(DESTDIR)$(SYSCONFDIR)/granian/apps-available/example.conf
+	install -d $(DESTDIR)$(SYSCONFDIR)/logrotate.d
+	install -m 0644 packaging/granian.logrotate $(DESTDIR)$(SYSCONFDIR)/logrotate.d/granian
 	install -d $(DESTDIR)$(LIBDIR)/systemd/system
 	ln -sf ../apps-available/example.conf $(DESTDIR)$(SYSCONFDIR)/granian/apps-enabled/example.conf
 	install -m 0644 packaging/granian.service $(DESTDIR)$(LIBDIR)/systemd/system/granian.service

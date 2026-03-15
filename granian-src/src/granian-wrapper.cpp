@@ -1,9 +1,11 @@
 #include <algorithm>
 #include <cerrno>
 #include <csignal>
+#include <ctime>
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
+#include <fcntl.h>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -24,6 +26,12 @@ struct Config {
     std::string app;
     std::string working_directory;
     std::string venv;
+    std::string log_dir = "/var/log/granian";
+    std::string log_file;
+    std::string error_log_file;
+    int restart_limit = 5;
+    int restart_window = 60;
+    int restart_delay = 2;
     std::vector<std::string> passthrough_args;
     std::vector<std::pair<std::string, std::string>> env_vars;
     std::map<std::string, std::vector<std::string>> options;
@@ -35,6 +43,9 @@ struct AppInstance {
     std::string config_dir;
     Config config;
     pid_t pid = -1;
+    std::time_t start_time = 0;
+    std::vector<std::time_t> recent_failures;
+    bool disabled = false;
 };
 
 std::string trim(const std::string& value) {
@@ -113,6 +124,25 @@ std::string base_name_without_suffix(const std::string& path) {
     return name;
 }
 
+int parse_positive_integer(const std::string& source, int line_number,
+                           const std::string& key, const std::string& raw_value,
+                           int min_value) {
+    try {
+        const int value = std::stoi(trim(raw_value));
+        if (value < min_value) {
+            throw std::runtime_error(source + ":" + std::to_string(line_number) +
+                                     ": " + key + " must be >= " + std::to_string(min_value));
+        }
+        return value;
+    } catch (const std::invalid_argument&) {
+        throw std::runtime_error(source + ":" + std::to_string(line_number) +
+                                 ": " + key + " must be an integer");
+    } catch (const std::out_of_range&) {
+        throw std::runtime_error(source + ":" + std::to_string(line_number) +
+                                 ": " + key + " is out of range");
+    }
+}
+
 void add_config_value(Config& config, const std::string& source, int line_number,
                       const std::string& raw_key, const std::string& raw_value) {
     const std::string key = normalize_key(trim(raw_key));
@@ -130,6 +160,30 @@ void add_config_value(Config& config, const std::string& source, int line_number
     }
     if (key == "venv") {
         config.venv = value;
+        return;
+    }
+    if (key == "log-dir") {
+        config.log_dir = value;
+        return;
+    }
+    if (key == "log-file") {
+        config.log_file = value;
+        return;
+    }
+    if (key == "error-log-file") {
+        config.error_log_file = value;
+        return;
+    }
+    if (key == "restart-limit") {
+        config.restart_limit = parse_positive_integer(source, line_number, key, value, 1);
+        return;
+    }
+    if (key == "restart-window") {
+        config.restart_window = parse_positive_integer(source, line_number, key, value, 1);
+        return;
+    }
+    if (key == "restart-delay") {
+        config.restart_delay = parse_positive_integer(source, line_number, key, value, 1);
         return;
     }
     if (key == "arg") {
@@ -219,12 +273,16 @@ std::vector<std::string> build_exec_args(const Config& config) {
 
     for (const auto& [key, values] : config.options) {
         for (const auto& value : values) {
+            std::string cli_key = key;
+            if (cli_key == "websockets") {
+                cli_key = "ws";
+            }
             bool bool_value = false;
             if (parse_bool(value, bool_value)) {
-                final_args.emplace_back(bool_value ? "--" + key : "--no-" + key);
+                final_args.emplace_back(bool_value ? "--" + cli_key : "--no-" + cli_key);
                 continue;
             }
-            final_args.emplace_back("--" + key);
+            final_args.emplace_back("--" + cli_key);
             if (!value.empty()) {
                 final_args.push_back(value);
             }
@@ -255,6 +313,10 @@ std::string join_path(const std::string& lhs, const std::string& rhs) {
         return lhs + rhs;
     }
     return lhs + "/" + rhs;
+}
+
+std::string default_log_file(const AppInstance& instance) {
+    return join_path(instance.config.log_dir, instance.name + ".log");
 }
 
 std::string configured_granian_path(const Config& config) {
@@ -300,6 +362,57 @@ void apply_env(const Config& config) {
     }
 }
 
+void validate_config(const AppInstance& instance) {
+    if (instance.config.app.empty()) {
+        throw std::runtime_error("missing required 'app=' setting in " + instance.config_path);
+    }
+    if (!instance.config.working_directory.empty() &&
+        !is_directory(instance.config.working_directory)) {
+        throw std::runtime_error("working-directory does not exist for " + instance.name +
+                                 ": " + instance.config.working_directory);
+    }
+    if (!instance.config.venv.empty() && !is_directory(instance.config.venv)) {
+        throw std::runtime_error("venv directory does not exist for " + instance.name +
+                                 ": " + instance.config.venv);
+    }
+}
+
+int open_log_file(const std::string& path) {
+    const int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0640);
+    if (fd < 0) {
+        throw std::runtime_error("cannot open log file " + path + ": " + std::strerror(errno));
+    }
+    return fd;
+}
+
+void redirect_logs(const AppInstance& instance) {
+    const std::string stdout_log = instance.config.log_file.empty()
+        ? default_log_file(instance)
+        : instance.config.log_file;
+    const std::string stderr_log = instance.config.error_log_file.empty()
+        ? stdout_log
+        : instance.config.error_log_file;
+
+    const int stdout_fd = open_log_file(stdout_log);
+    int stderr_fd = stdout_fd;
+    if (stderr_log != stdout_log) {
+        stderr_fd = open_log_file(stderr_log);
+    }
+
+    if (dup2(stdout_fd, STDOUT_FILENO) < 0) {
+        throw std::runtime_error("dup2(stdout) failed: " + std::string(std::strerror(errno)));
+    }
+    if (dup2(stderr_fd, STDERR_FILENO) < 0) {
+        throw std::runtime_error("dup2(stderr) failed: " + std::string(std::strerror(errno)));
+    }
+    if (stdout_fd != STDOUT_FILENO) {
+        close(stdout_fd);
+    }
+    if (stderr_fd != STDERR_FILENO && stderr_fd != stdout_fd) {
+        close(stderr_fd);
+    }
+}
+
 void reset_signal_handlers() {
     std::signal(SIGTERM, SIG_DFL);
     std::signal(SIGINT, SIG_DFL);
@@ -326,6 +439,7 @@ pid_t start_child(const AppInstance& instance) {
             _exit(1);
         }
         try {
+            redirect_logs(instance);
             apply_venv_env(instance.config);
             apply_env(instance.config);
             std::vector<std::string> final_args = build_exec_args(instance.config);
@@ -375,9 +489,7 @@ std::vector<AppInstance> load_apps() {
         instance.config_dir = std::string(GRANIAN_APPS_ENABLED_DIR) + "/" + instance.name + ".d";
         instance.config = global_defaults;
         load_optional_config(instance.config, instance.config_path, instance.config_dir);
-        if (instance.config.app.empty()) {
-            throw std::runtime_error("missing required 'app=' setting in " + instance.config_path);
-        }
+        validate_config(instance);
         apps.push_back(instance);
     }
 
@@ -390,6 +502,15 @@ void validate_apps() {
         throw std::runtime_error("no enabled apps found in " + std::string(GRANIAN_APPS_ENABLED_DIR));
     }
     std::cout << "Configuration OK: " << apps.size() << " app(s)\n";
+}
+
+void prune_failures(AppInstance& app, std::time_t now) {
+    app.recent_failures.erase(
+        std::remove_if(app.recent_failures.begin(), app.recent_failures.end(),
+                       [&](std::time_t ts) {
+                           return (now - ts) > app.config.restart_window;
+                       }),
+        app.recent_failures.end());
 }
 
 void terminate_children(const std::vector<AppInstance>& apps, int signal_number) {
@@ -411,6 +532,7 @@ int run_supervisor() {
     std::map<pid_t, std::size_t> pid_to_index;
     for (std::size_t index = 0; index < apps.size(); ++index) {
         apps[index].pid = start_child(apps[index]);
+        apps[index].start_time = std::time(nullptr);
         pid_to_index[apps[index].pid] = index;
         std::cerr << "granian-wrapper: started " << apps[index].name
                   << " with pid " << apps[index].pid << "\n";
@@ -438,6 +560,7 @@ int run_supervisor() {
         AppInstance& app = apps[app_index];
         pid_to_index.erase(iter);
         app.pid = -1;
+        const std::time_t now = std::time(nullptr);
 
         if (g_terminate_requested) {
             continue;
@@ -449,15 +572,35 @@ int run_supervisor() {
         } else if (WIFSIGNALED(status)) {
             std::cerr << " due to signal " << WTERMSIG(status);
         }
+        const std::time_t uptime = app.start_time > 0 ? now - app.start_time : 0;
+        if (uptime >= app.config.restart_window) {
+            app.recent_failures.clear();
+        }
+        app.recent_failures.push_back(now);
+        prune_failures(app, now);
+
+        if (static_cast<int>(app.recent_failures.size()) >= app.config.restart_limit) {
+            app.disabled = true;
+            std::cerr << ", restart limit reached; disabling app until service restart\n";
+            continue;
+        }
         std::cerr << ", restarting\n";
 
-        sleep(2);
+        sleep(app.config.restart_delay);
         app.pid = start_child(app);
+        app.start_time = std::time(nullptr);
         pid_to_index[app.pid] = app_index;
         std::cerr << "granian-wrapper: restarted " << app.name
                   << " with pid " << app.pid << "\n";
     }
 
+    bool any_disabled = false;
+    for (const auto& app : apps) {
+        any_disabled = any_disabled || app.disabled;
+    }
+    if (any_disabled) {
+        std::cerr << "granian-wrapper: one or more apps were disabled after repeated failures\n";
+    }
     return 0;
 }
 
