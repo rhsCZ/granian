@@ -1,3 +1,9 @@
+granian (1.0.2) noble; urgency=medium
+
+  * Improve package upgrade behavior.
+
+ -- Jan Hodouš <rhscz@post.cz>  Sun, 15 Mar 2026 10:10:00 +0100
+
 granian (1.0.1) noble; urgency=medium
 
   * Tighten supervisor behavior and logging.

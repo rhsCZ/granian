@@ -17,6 +17,14 @@ case "$1" in
                 --gecos "Granian service user" \
                 granian
         fi
+
+        cat <<'EOF'
+granian: package installed/updated.
+granian: service restart is not forced automatically during upgrade.
+granian: if needed, run:
+  systemctl daemon-reload
+  systemctl restart granian.service
+EOF
     ;;
 esac
 

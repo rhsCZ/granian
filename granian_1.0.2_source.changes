@@ -1,0 +1,46 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Format: 1.8
+Date: Sun, 15 Mar 2026 10:10:00 +0100
+Source: granian
+Built-For-Profiles: noudeb
+Architecture: source
+Version: 1.0.2
+Distribution: noble
+Urgency: medium
+Maintainer: Codex <codex@example.com>
+Changed-By: Jan Hodouš <rhscz@post.cz>
+Changes:
+ granian (1.0.2) noble; urgency=medium
+ .
+   * Improve package upgrade behavior.
+Checksums-Sha1:
+ 857d0824e1d2b7fc16d99e5104bab255db653988 1381 granian_1.0.2.dsc
+ ae6c914cffed295a7e806cb4fa10d6c6cb40e8f4 9140 granian_1.0.2.tar.xz
+ 5b546a6e85fb33ba362a14426d70b58275b357e7 7134 granian_1.0.2_source.buildinfo
+Checksums-Sha256:
+ 5a5aa63160ffe567a19b38aab12e3d2d0115cc7e1c3662e10d1c52aa2bea1664 1381 granian_1.0.2.dsc
+ abeffa6652df5e35155db8f771f281b44841ec8504ca25b186bcc04570bfd052 9140 granian_1.0.2.tar.xz
+ b9576e2e404880f2b6dd86cedfdafc626760e9bb9a1b11e406ac4e2294528db4 7134 granian_1.0.2_source.buildinfo
+Files:
+ ed44ef8753fce57ee6f3e0e4b9b4778c 1381 net optional granian_1.0.2.dsc
+ e76bd8d62a99ffa9bfb7e64cdd3f575d 9140 net optional granian_1.0.2.tar.xz
+ 46154cbe7d076ad3c97fb51ed6ad8bb7 7134 net optional granian_1.0.2_source.buildinfo
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCgAdFiEEBA4y7RgfpWqP10UabjGunhICqWAFAmm2d48ACgkQbjGunhIC
+qWAGHw/7BwhHkIDOVgEo5wucefVaUS86gFtMfC23PCEpH+Nsm5kPNdqcsLYoC38R
+XlOmCZ419uvmD0+87V2X3wTW+cntGMhlysRrZLeR+DlEDrfWFEgB6rfRqgeWpRmT
+Zmx6ljvjvKeF4p2JTvPP6UEpjpPkiHkP9yTHWp1Z59MTQ5f/xESqOGGRasfEm4NS
+v1oRE6RsWqr1hYFDeNi41W2FK09FIYoNz8yoqyTaI2CHyrf7mM1PwpVrsZ50xSNc
+WoQi5jxEQTQJSuch68hox7jjIZRAi/FRcoHqR11v1gk25GqYa0OwNmWtYoKGuKDB
+xptg4mnoL/JOBXAS+VgS4TIfBq9DHLeasf+S08M8vW5gNLD+mNKa0/iljMEvn+df
+OetjFco9SBI2PPykyH/CNqkhjMbLJbbQ97iuuEFb8iFrespfmw7D6PfGBpT5cziH
+OYdFj0ve8Xa09BWMBBdjPtSPjpZyAiW+3cJJpF5FPsFrL95b4Lt7ff0rT9EaYfA5
+i8Fr7NYcx5Edkv4AB25UmsZCyaHiJ2ZDyACofTxb1O+llm3/gW2+x/dfhtUn/zEc
+TyX9q61ixWb+KJEFjdcGX4TW3/UAw0kGHVD9Ll5QnZQGehPF3i+7ooDPre0LiwHe
+C3nHiLUq1sOTQdZCs+M98d29aFaUfIUebSw7ypwlXEbbnOFuqgs=
+=uiTR
+-----END PGP SIGNATURE-----
