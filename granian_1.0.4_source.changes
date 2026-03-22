@@ -1,0 +1,49 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Format: 1.8
+Date: Sat, 22 Mar 2026 12:00:00 +0100
+Source: granian
+Built-For-Profiles: noudeb
+Architecture: source
+Version: 1.0.4
+Distribution: noble
+Urgency: medium
+Maintainer: Codex <codex@example.com>
+Changed-By: Jan Hodouš <rhscz@post.cz>
+Changes:
+ granian (1.0.4) noble; urgency=medium
+ .
+   * Expand the shipped example application config into a documented
+     reference covering wrapper keys and Granian CLI options.
+   * Keep python3-granian as a required runtime dependency.
+   * Refresh package metadata and changelog entries.
+Checksums-Sha1:
+ 02dfc5dee663c90929d1d69cb4d30ea711d06cde 1384 granian_1.0.4.dsc
+ ce0ece30c342b38e72fa53e5d3d667c3e95a3a33 13296 granian_1.0.4.tar.xz
+ b0175f0f21e9e48ac4e3a604daec791ec1abe79a 7142 granian_1.0.4_source.buildinfo
+Checksums-Sha256:
+ 02815a8520f363be7d339125e4e289e83232fef1e85e06ee519b569d7c7a86ca 1384 granian_1.0.4.dsc
+ 09f050f2198bb5e5cb46ba1301361641b610f9dbd7b7e8fb45906f4cb91882ac 13296 granian_1.0.4.tar.xz
+ fcfb0f1fc5b0c7ec2e6532658f56de69a728a0c70a5e58bb386cbcc253019ce7 7142 granian_1.0.4_source.buildinfo
+Files:
+ 736f0a7e92dfb8d9b0d2b0ba91fe6ead 1384 net optional granian_1.0.4.dsc
+ ceaa187ee9a6534728524d5e03c2a13e 13296 net optional granian_1.0.4.tar.xz
+ 4f18f7a8f30b0f3bbcd15774c477e291 7142 net optional granian_1.0.4_source.buildinfo
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCgAdFiEEBA4y7RgfpWqP10UabjGunhICqWAFAmm/xR0ACgkQbjGunhIC
+qWB33w/9FcL6G9XzmnFYt3eQO49LC/xCYjk2xMtkL3Nd3Q7afH5vze1AhrZP8my+
+0BDScDb3o7yapuWsLMVygwfLZoqv6UAZBcwmFr+OxiC9w/Kk6rP435Bc5UZqOrzg
+RrOqNqmEKYm1yhB2s14pTeopBOevo8njjjX2lNIUvsscnugtM/FoKvP7fREomj/v
+b4uJTFPniIzVuW4Be4bJmLpNGzXmQQSsXgPrVcRaaHe58z3YY3KSlSLZybnmjmI/
+DuvNY2Y9htPnnqdDIw9jW5XTJ2UOPVhVWClJNRQXG8pqpoE2E/19WXNbKzTfB2/T
+lGwBm2xwZ0rOBsUmQqXW1+/5+/OfXfzEXqF8mWBgjaEzd6TgnSBF4UP8w6G4Qa49
+xVYUpJSAnQIs+7V6qSHcUkmf7dRCMzb8FZj6rqwobRk1aaiIObxT04nNMqKE//QE
+/6CPFCEShNaPYKyPLO/zfORUvk+Gm6ThuIoQmb1qzEfOxIWVpa4bvow3M4KK0YxI
+R3FmlWuFg6vPl3jLjRL2b1nk9NxlM6X/Nyw2AUw8r0N6SY3sbyF3Xml4OVBfipa7
+HG7CbdNjF4ZL29zYXQ83gt6PR1Ufer3ejKUObhFUe4r5zPmRWiv9SSFHAS1sSquV
+rwiWShJch9G1pT1k2yx6UZ/p07ov0GvTrGrEFgbxANx8KkZCWu0=
+=2/fK
+-----END PGP SIGNATURE-----
