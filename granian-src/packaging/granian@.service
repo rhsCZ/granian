@@ -1,8 +1,8 @@
 [Unit]
-Description=Granian application server
+Description=Granian application server for %i
 After=network.target
 Wants=network-online.target
-Conflicts=granian@.service
+Conflicts=granian.service granian@.service
 
 [Service]
 Type=simple
@@ -10,12 +10,12 @@ User=granian
 Group=granian
 WorkingDirectory=/var/lib/granian
 EnvironmentFile=-/etc/default/granian
-ExecStart=/usr/sbin/granian-wrapper
-ExecStartPre=/usr/sbin/granian-wrapper --check
+ExecStart=/usr/sbin/granian-wrapper --instance %i
+ExecStartPre=/usr/sbin/granian-wrapper --check --instance %i
 Restart=on-failure
 RestartSec=2s
-StandardOutput=append:/var/log/granian/supervisor.log
-StandardError=append:/var/log/granian/supervisor.log
+StandardOutput=append:/var/log/granian/%i-supervisor.log
+StandardError=append:/var/log/granian/%i-supervisor.log
 RuntimeDirectory=granian
 StateDirectory=granian
 LogsDirectory=granian

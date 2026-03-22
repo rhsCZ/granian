@@ -5,6 +5,7 @@ running one or more Python web applications with upstream `python3-granian`.
 It is designed for system service use:
 
 - one systemd unit: `granian.service`
+- optional per-application unit: `granian@app.service`
 - multiple application configs under `/etc/granian/apps-available/`
 - enabled applications selected by symlinks in `/etc/granian/apps-enabled/`
 - per-application process supervision
@@ -31,6 +32,11 @@ The installed supervisor:
 This gives you a workflow similar in spirit to `a2ensite`/`a2dissite`, but for
 Granian-backed Python applications.
 
+The package can be used in two execution modes:
+
+- global supervisor mode via `granian.service`, which manages all enabled apps
+- per-app mode via `granian@app.service`, which manages exactly one enabled app
+
 ## Installed Files
 
 Important files and directories:
@@ -40,6 +46,7 @@ Important files and directories:
 /usr/sbin/granianenconf
 /usr/sbin/graniandisconf
 /usr/lib/systemd/system/granian.service
+/usr/lib/systemd/system/granian@.service
 /etc/default/granian
 /etc/granian/granian.conf
 /etc/granian/conf.d/
@@ -55,6 +62,7 @@ Purpose of the main components:
 - `granianenconf`: creates a symlink from `apps-available` to `apps-enabled`
 - `graniandisconf`: removes that symlink
 - `granian.service`: single systemd unit managing all enabled apps
+- `granian@.service`: instance unit managing one enabled app
 - `granian.conf`: global defaults shared by all apps
 - `apps-available/*.conf`: per-app config files
 - `apps-enabled/*.conf`: enabled apps via symlinks
@@ -114,6 +122,21 @@ Disable an app:
 sudo graniandisconf myapp
 sudo systemctl restart granian.service
 ```
+
+Single-app systemd workflow:
+
+```sh
+sudo granianenconf myapp
+sudo systemctl start granian@myapp.service
+sudo systemctl status granian@myapp.service
+```
+
+The instance unit `granian@myapp.service` loads:
+
+- `/etc/granian/granian.conf`
+- `/etc/granian/conf.d/*.conf`
+- `/etc/granian/apps-enabled/myapp.conf`
+- `/etc/granian/apps-enabled/myapp.d/*.conf`
 
 ## Configuration Model
 
@@ -222,9 +245,13 @@ directories, locked databases, and similar failures.
 The package ships one service:
 
 - `granian.service`
+- `granian@.service`
 
-It starts the supervisor, not the individual apps directly. The supervisor then
-starts one Granian process per enabled app.
+`granian.service` starts the global supervisor, which then starts one Granian
+process per enabled app.
+
+`granian@app.service` starts the same wrapper in instance mode and manages only
+the app selected by `%i`.
 
 Useful commands:
 
@@ -234,10 +261,19 @@ sudo systemctl start granian.service
 sudo systemctl stop granian.service
 sudo systemctl restart granian.service
 sudo journalctl -u granian.service
+sudo journalctl -u granian@myapp.service
 ```
 
+Conflict handling:
+
+- `granian.service` conflicts with `granian@.service`
+- `granian@.service` conflicts with `granian.service`
+
+The intention is to avoid running the global supervisor and a per-app unit at
+the same time for the same installation.
+
 The package does not automatically create enabled applications. You decide what
-to enable.
+to enable and whether to run them through the global unit or individual units.
 
 ## Virtualenv Support
 

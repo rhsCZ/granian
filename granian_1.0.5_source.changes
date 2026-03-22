@@ -1,0 +1,46 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Format: 1.8
+Date: Sat, 22 Mar 2026 14:00:00 +0100
+Source: granian
+Built-For-Profiles: noudeb
+Architecture: source
+Version: 1.0.5
+Distribution: noble
+Urgency: medium
+Maintainer: Codex <codex@example.com>
+Changed-By: Jan Hodouš <rhscz@post.cz>
+Changes:
+ granian (1.0.5) noble; urgency=medium
+ .
+   * Add a per-application systemd template unit and wrapper instance mode.
+Checksums-Sha1:
+ f1999cf2004c113531745f94295046fa7d1b793a 1384 granian_1.0.5.dsc
+ bbc69b7964ac084463a26e8ea85df82ec2618430 13844 granian_1.0.5.tar.xz
+ 1c3a53ae3ae2674b19f18a64703b71f7362d33e3 7142 granian_1.0.5_source.buildinfo
+Checksums-Sha256:
+ 55de4a3c21f1926ea7fb893066e7d6b93299f4f99b3530907ab8cc54d2cdc415 1384 granian_1.0.5.dsc
+ 5444bede9c4a7ac60688ba4969cf7c9864391fc8beb03235890bf7dee20baeba 13844 granian_1.0.5.tar.xz
+ c1d4f2226aac3df4d03ecc4bd3e6483e3adf385ddc051573ca4a83c2104a5726 7142 granian_1.0.5_source.buildinfo
+Files:
+ fc270add1e6936cca7bed07af120385c 1384 net optional granian_1.0.5.dsc
+ a0b3cb538b4d27ee42506897c5ca895a 13844 net optional granian_1.0.5.tar.xz
+ d5e9f82068f4421025162cd140d72a41 7142 net optional granian_1.0.5_source.buildinfo
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCgAdFiEEBA4y7RgfpWqP10UabjGunhICqWAFAmm/3UAACgkQbjGunhIC
+qWDvjw//XY5wZofiv1WPaicngQHyQowE2KOu8EktU79oMi/OrTmfPWybI0Qf28Ga
+A+VWLIXZg9bJXmkT7/o7saHiOmwv97eyDcDJd5ND81D/IBTdlq+VrNOPro44UDf4
+1VGnfikjzIZDvUcjKFH/wc6sPSKvZttjYwc7Ws+zKrQySUTVvAfFG/wI9mHju5nI
+BXGK09pqHd0Lv/+J2D62F8n0cZ8ltquLIqZwYDVoXyu1szfxEcd//ti7YH1OWe33
+wOY/eVnL9RtL0Sphh4OkxU4s3Rr5WmKHlw9dmky+bqak+2jFGnUysZGoblsRbue0
+n9lcPc9MgIHeYwF/KomyRxPoz+V7HUeTbmdx9GjAnvInDLRnltD5HkgDGqzbH7vW
+Wb5MX4rAZUVDbzU+FwI92xf5uskqzEQUhGQiWhWwdrhREp5+YrKFFLyWAKe6v43l
+LjuJrazqjTaFKFS3/qBEY9eoVlhPv0b+MtmHSx6Fk1H1tq0MOl6FNYBEf29XtgTY
+oAIr497YuMoQ/jjFsZfDpO3ABPduBzNreqxC/vQl2AHp+vP/KvrFh4OFmCmPfk6C
+SxhG0aFw7r7YcAnDTFHDWbbWtfwXr2TcuOasWt/h1c3lgHBQcZn7zxVrkMkE1GJw
+DbwrLopXhEl29feucHNnXciZHHPJMKoH2NbfSZA9Y7niy052i3o=
+=uPFh
+-----END PGP SIGNATURE-----

@@ -48,6 +48,11 @@ struct AppInstance {
     bool disabled = false;
 };
 
+struct ProgramOptions {
+    bool check_only = false;
+    std::string instance_name;
+};
+
 std::string trim(const std::string& value) {
     const auto begin = value.find_first_not_of(" \t\r\n");
     if (begin == std::string::npos) {
@@ -122,6 +127,20 @@ std::string base_name_without_suffix(const std::string& path) {
         name.resize(name.size() - 5);
     }
     return name;
+}
+
+bool is_valid_instance_name(const std::string& name) {
+    if (name.empty()) {
+        return false;
+    }
+    for (char ch : name) {
+        if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+            (ch >= '0' && ch <= '9') || ch == '_' || ch == '-' || ch == '.') {
+            continue;
+        }
+        return false;
+    }
+    return true;
 }
 
 int parse_positive_integer(const std::string& source, int line_number,
@@ -477,29 +496,50 @@ std::vector<std::string> list_enabled_apps() {
     return list_config_dir(GRANIAN_APPS_ENABLED_DIR);
 }
 
-std::vector<AppInstance> load_apps() {
+AppInstance load_app(const std::string& path, const Config& global_defaults) {
+    AppInstance instance;
+    instance.name = base_name_without_suffix(path);
+    instance.config_path = path;
+    instance.config_dir = std::string(GRANIAN_APPS_ENABLED_DIR) + "/" + instance.name + ".d";
+    instance.config = global_defaults;
+    load_optional_config(instance.config, instance.config_path, instance.config_dir);
+    validate_config(instance);
+    return instance;
+}
+
+std::vector<AppInstance> load_apps(const std::string& instance_name = "") {
     std::vector<AppInstance> apps;
     Config global_defaults;
     load_optional_config(global_defaults, GRANIAN_CONFIG_PATH, GRANIAN_CONFIG_DIR);
 
+    if (!instance_name.empty()) {
+        if (!is_valid_instance_name(instance_name)) {
+            throw std::runtime_error("invalid instance name: " + instance_name);
+        }
+        const std::string path = std::string(GRANIAN_APPS_ENABLED_DIR) + "/" + instance_name + ".conf";
+        struct stat statbuf {};
+        if (stat(path.c_str(), &statbuf) != 0) {
+            throw std::runtime_error("enabled app config not found: " + path);
+        }
+        apps.push_back(load_app(path, global_defaults));
+        return apps;
+    }
+
     for (const auto& path : list_enabled_apps()) {
-        AppInstance instance;
-        instance.name = base_name_without_suffix(path);
-        instance.config_path = path;
-        instance.config_dir = std::string(GRANIAN_APPS_ENABLED_DIR) + "/" + instance.name + ".d";
-        instance.config = global_defaults;
-        load_optional_config(instance.config, instance.config_path, instance.config_dir);
-        validate_config(instance);
-        apps.push_back(instance);
+        apps.push_back(load_app(path, global_defaults));
     }
 
     return apps;
 }
 
-void validate_apps() {
-    const auto apps = load_apps();
+void validate_apps(const std::string& instance_name = "") {
+    const auto apps = load_apps(instance_name);
     if (apps.empty()) {
         throw std::runtime_error("no enabled apps found in " + std::string(GRANIAN_APPS_ENABLED_DIR));
+    }
+    if (!instance_name.empty()) {
+        std::cout << "Configuration OK: " << instance_name << "\n";
+        return;
     }
     std::cout << "Configuration OK: " << apps.size() << " app(s)\n";
 }
@@ -521,8 +561,8 @@ void terminate_children(const std::vector<AppInstance>& apps, int signal_number)
     }
 }
 
-int run_supervisor() {
-    std::vector<AppInstance> apps = load_apps();
+int run_supervisor(const std::string& instance_name = "") {
+    std::vector<AppInstance> apps = load_apps(instance_name);
     if (apps.empty()) {
         throw std::runtime_error("no enabled apps found in " + std::string(GRANIAN_APPS_ENABLED_DIR));
     }
@@ -606,34 +646,46 @@ int run_supervisor() {
 
 void print_usage(const char* argv0) {
     std::cerr
-        << "Usage: " << argv0 << " [--check]\n"
+        << "Usage: " << argv0 << " [--check] [--instance NAME]\n"
         << "Reads global defaults from " << GRANIAN_CONFIG_PATH << " and enabled app configs from "
         << GRANIAN_APPS_ENABLED_DIR << ".\n";
+}
+
+ProgramOptions parse_args(int argc, char** argv) {
+    ProgramOptions options;
+    for (int index = 1; index < argc; ++index) {
+        const std::string arg(argv[index]);
+        if (arg == "--check") {
+            options.check_only = true;
+            continue;
+        }
+        if (arg == "--instance") {
+            if (index + 1 >= argc) {
+                throw std::runtime_error("--instance requires an app name");
+            }
+            options.instance_name = argv[++index];
+            continue;
+        }
+        if (arg == "--help" || arg == "-h") {
+            print_usage(argv[0]);
+            std::exit(0);
+        }
+        throw std::runtime_error("unknown argument: " + arg);
+    }
+    return options;
 }
 
 }  // namespace
 
 int main(int argc, char** argv) {
     try {
-        bool check_only = false;
-        for (int index = 1; index < argc; ++index) {
-            const std::string arg(argv[index]);
-            if (arg == "--check") {
-                check_only = true;
-                continue;
-            }
-            if (arg == "--help" || arg == "-h") {
-                print_usage(argv[0]);
-                return 0;
-            }
-            throw std::runtime_error("unknown argument: " + arg);
-        }
+        const ProgramOptions options = parse_args(argc, argv);
 
-        if (check_only) {
-            validate_apps();
+        if (options.check_only) {
+            validate_apps(options.instance_name);
             return 0;
         }
-        return run_supervisor();
+        return run_supervisor(options.instance_name);
     } catch (const std::exception& error) {
         std::cerr << "granian-wrapper: " << error.what() << "\n";
         return 1;

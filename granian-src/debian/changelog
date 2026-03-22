@@ -1,3 +1,9 @@
+granian (1.0.5) noble; urgency=medium
+
+  * Add a per-application systemd template unit and wrapper instance mode.
+
+ -- Jan Hodouš <rhscz@post.cz>  Sat, 22 Mar 2026 14:00:00 +0100
+
 granian (1.0.4) noble; urgency=medium
 
   * Expand the shipped example application config into a documented

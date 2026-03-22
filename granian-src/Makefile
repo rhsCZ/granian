@@ -60,3 +60,4 @@ install: $(TARGETS)
 	install -m 0644 packaging/granian.logrotate $(DESTDIR)$(SYSCONFDIR)/logrotate.d/granian
 	install -d $(DESTDIR)$(LIBDIR)/systemd/system
 	install -m 0644 packaging/granian.service $(DESTDIR)$(LIBDIR)/systemd/system/granian.service
+	install -m 0644 packaging/granian@.service $(DESTDIR)$(LIBDIR)/systemd/system/granian@.service
