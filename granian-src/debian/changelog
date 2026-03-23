@@ -1,3 +1,10 @@
+granian (1.0.6) noble; urgency=medium
+
+  * Create /var/log/granian during package installation.
+  * Use journal logging for supervisor units.
+
+ -- Jan Hodouš <rhscz@post.cz>  Sun, 23 Mar 2026 21:05:00 +0100
+
 granian (1.0.5) noble; urgency=medium
 
   * Add a per-application systemd template unit and wrapper instance mode.

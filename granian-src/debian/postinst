@@ -18,12 +18,17 @@ case "$1" in
                 granian
         fi
 
+        install -d -o granian -g granian -m 0750 /var/log/granian
+
+        systemctl daemon-reload
+
         cat <<'EOF'
 granian: package installed/updated.
-granian: service restart is not forced automatically during upgrade.
+granian: service start/restart is not forced automatically during install/upgrade.
 granian: if needed, run:
-  systemctl daemon-reload
   systemctl restart granian.service
+or
+  systemctl restart granian@app.service
 EOF
     ;;
 esac

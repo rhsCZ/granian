@@ -44,9 +44,20 @@ bool path_exists(const std::string& path) {
 
 void usage(const char* argv0) {
 #if GRANIAN_ENABLE_CONF
-    std::cerr << "Usage: " << argv0 << " APPNAME[.conf]\n";
+    std::cerr
+        << "Usage: " << argv0 << " [OPTIONS] APPNAME[.conf]\n\n"
+        << "Enable an application config by creating a symlink from\n"
+        << GRANIAN_APPS_AVAILABLE_DIR << "/APPNAME.conf to\n"
+        << GRANIAN_APPS_ENABLED_DIR << "/APPNAME.conf.\n\n"
+        << "Options:\n"
+        << "  -h, --help   Show this help.\n";
 #else
-    std::cerr << "Usage: " << argv0 << " APPNAME[.conf]\n";
+    std::cerr
+        << "Usage: " << argv0 << " [OPTIONS] APPNAME[.conf]\n\n"
+        << "Disable an application config by removing the symlink\n"
+        << GRANIAN_APPS_ENABLED_DIR << "/APPNAME.conf.\n\n"
+        << "Options:\n"
+        << "  -h, --help   Show this help.\n";
 #endif
 }
 
@@ -54,6 +65,10 @@ void usage(const char* argv0) {
 
 int main(int argc, char** argv) {
     try {
+        if (argc == 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h")) {
+            usage(argv[0]);
+            return 0;
+        }
         if (argc != 2) {
             usage(argv[0]);
             return 1;

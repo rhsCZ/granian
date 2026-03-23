@@ -1,0 +1,47 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Format: 1.8
+Date: Sun, 23 Mar 2026 21:05:00 +0100
+Source: granian
+Built-For-Profiles: noudeb
+Architecture: source
+Version: 1.0.6
+Distribution: noble
+Urgency: medium
+Maintainer: Codex <codex@example.com>
+Changed-By: Jan Hodouš <rhscz@post.cz>
+Changes:
+ granian (1.0.6) noble; urgency=medium
+ .
+   * Create /var/log/granian during package installation.
+   * Use journal logging for supervisor units.
+Checksums-Sha1:
+ 8b622f4a0ed0d8385cc0c4b31df243d7b7491299 1384 granian_1.0.6.dsc
+ 3eb3a216c0a31fb8f2fa11c3e252253f4e6d3459 14568 granian_1.0.6.tar.xz
+ 81f62244207e82ad177a8ebf7a97e2586d1a1708 7146 granian_1.0.6_source.buildinfo
+Checksums-Sha256:
+ 5087e0e0a255472082e13811af9e0162fe67135338b4dd92859bbca1389c6a42 1384 granian_1.0.6.dsc
+ 3b30600c119aba89b35eab25c9527385baa6f130823dde1fe02649eb141daf20 14568 granian_1.0.6.tar.xz
+ ae04e7e3d10831696228a81bc196aa7af49ec03c9be1de7cf39af65a191c6487 7146 granian_1.0.6_source.buildinfo
+Files:
+ a9ac3e59a6e052d5bdb4802a00707ecc 1384 net optional granian_1.0.6.dsc
+ ee067d3febacac657c6cb48802537182 14568 net optional granian_1.0.6.tar.xz
+ c3e61d2e0698658338e1e287272c8f95 7146 net optional granian_1.0.6_source.buildinfo
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCgAdFiEEBA4y7RgfpWqP10UabjGunhICqWAFAmnBo9sACgkQbjGunhIC
+qWC/Qw//ShjHuvDNg60QmZi4Q1gNi+im8JouEBTvGNbCwu68ptbTrt32dpAyUXwH
+pRRm25c65NYhWV8hgXZ9r9Ghx3ub7mVOf9eaSNJrCARJD1pbX/QqdggIwEkozwH/
+kzCzyi1TbR4A6ujLt5CZ49BIdVeKDv3pekpAgLcP9GA0Fp0dOTBSEFlGSxQZM6HM
+3DcW/7ppJOxiBLtZ/EpbSacEBmCLd/q3mQ8uk6r/AUqbhGWbn/UexIRp/8lGKUlX
+/r0QBRV4heH17G6u6ZdzgwTZwyfUn9PMUXN1Q2XIkZY+l1As8I+mMTYr/gMCfs2V
+O1GUugAwn8E1zCqoWBBR5w6iHE9LbmEzZpMpbjkniOAyHxAd4zlGdkDmAivFJ1eS
+smJKXfoneEj9gZ9kq/URtRpdJ5IHKXwFlndDr3oQWQHiv4A1O6HvkR0/JwchMJAc
+QyXR0oDycxCyGkfbpNd0udrbaTy+KmDtFYFqFw9nWXCDMg1a6inH53f+kg2hVV1H
+mkLjsaQhAgH5YFrr7LWEwq/feIQN5SdQV5kwvhMC74hnFPlrvstiZeQbaTqrVXL6
+wMj1KeA/HN4P6sPmLF6StVRltsdJDHBe/RZ8cW4N+V0AvOcWF/4iRDQR+wiOkyAx
+lxGZcBgk5ON8bolhZdgCmCgrPJWWusjtm3EpYnJL8IbNwlN+AvA=
+=2KZ3
+-----END PGP SIGNATURE-----

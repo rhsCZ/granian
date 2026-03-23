@@ -21,6 +21,7 @@
 namespace {
 
 volatile sig_atomic_t g_terminate_requested = 0;
+bool g_debug_enabled = false;
 
 struct Config {
     std::string app;
@@ -50,8 +51,15 @@ struct AppInstance {
 
 struct ProgramOptions {
     bool check_only = false;
+    bool debug = false;
     std::string instance_name;
 };
+
+void debug_log(const std::string& message) {
+    if (g_debug_enabled) {
+        std::cerr << "granian-wrapper[debug]: " << message << "\n";
+    }
+}
 
 std::string trim(const std::string& value) {
     const auto begin = value.find_first_not_of(" \t\r\n");
@@ -224,6 +232,7 @@ void add_config_value(Config& config, const std::string& source, int line_number
 }
 
 void parse_file(Config& config, const std::string& path) {
+    debug_log("loading config file " + path);
     std::ifstream input(path);
     if (!input) {
         throw std::runtime_error("cannot open config file: " + path);
@@ -267,6 +276,15 @@ std::vector<std::string> list_config_dir(const std::string& path) {
     }
     closedir(dir);
     std::sort(files.begin(), files.end());
+    if (g_debug_enabled) {
+        if (files.empty()) {
+            debug_log("no config fragments found in " + path);
+        } else {
+            for (const auto& file : files) {
+                debug_log("found config fragment " + file);
+            }
+        }
+    }
     return files;
 }
 
@@ -274,6 +292,8 @@ void load_optional_config(Config& config, const std::string& config_path, const 
     struct stat statbuf {};
     if (!config_path.empty() && stat(config_path.c_str(), &statbuf) == 0) {
         parse_file(config, config_path);
+    } else if (!config_path.empty()) {
+        debug_log("config file not present: " + config_path);
     }
     if (!config_dir.empty()) {
         for (const auto& file : list_config_dir(config_dir)) {
@@ -349,8 +369,10 @@ std::string configured_granian_path(const Config& config) {
 
     const std::string candidate = join_path(join_path(config.venv, "bin"), "granian");
     if (is_executable_file(candidate)) {
+        debug_log("using granian from virtualenv: " + candidate);
         return candidate;
     }
+    debug_log("virtualenv granian not found, falling back to " + std::string(GRANIAN_BIN_PATH));
     return GRANIAN_BIN_PATH;
 }
 
@@ -371,6 +393,7 @@ void apply_venv_env(const Config& config) {
     if (setenv("PATH", new_path.c_str(), 1) != 0) {
         throw std::runtime_error("setenv(PATH) failed: " + std::string(std::strerror(errno)));
     }
+    debug_log("activated virtualenv " + config.venv);
 }
 
 void apply_env(const Config& config) {
@@ -382,6 +405,7 @@ void apply_env(const Config& config) {
 }
 
 void validate_config(const AppInstance& instance) {
+    debug_log("validating app " + instance.name);
     if (instance.config.app.empty()) {
         throw std::runtime_error("missing required 'app=' setting in " + instance.config_path);
     }
@@ -424,6 +448,8 @@ void redirect_logs(const AppInstance& instance) {
     if (dup2(stderr_fd, STDERR_FILENO) < 0) {
         throw std::runtime_error("dup2(stderr) failed: " + std::string(std::strerror(errno)));
     }
+    debug_log("redirecting app logs for " + instance.name + " to " + stdout_log +
+              (stderr_log == stdout_log ? "" : (" and " + stderr_log)));
     if (stdout_fd != STDOUT_FILENO) {
         close(stdout_fd);
     }
@@ -510,6 +536,8 @@ AppInstance load_app(const std::string& path, const Config& global_defaults) {
 std::vector<AppInstance> load_apps(const std::string& instance_name = "") {
     std::vector<AppInstance> apps;
     Config global_defaults;
+    debug_log("loading global defaults from " + std::string(GRANIAN_CONFIG_PATH) +
+              " and " + std::string(GRANIAN_CONFIG_DIR));
     load_optional_config(global_defaults, GRANIAN_CONFIG_PATH, GRANIAN_CONFIG_DIR);
 
     if (!instance_name.empty()) {
@@ -521,10 +549,12 @@ std::vector<AppInstance> load_apps(const std::string& instance_name = "") {
         if (stat(path.c_str(), &statbuf) != 0) {
             throw std::runtime_error("enabled app config not found: " + path);
         }
+        debug_log("loading single app instance " + instance_name + " from " + path);
         apps.push_back(load_app(path, global_defaults));
         return apps;
     }
 
+    debug_log("loading all enabled apps from " + std::string(GRANIAN_APPS_ENABLED_DIR));
     for (const auto& path : list_enabled_apps()) {
         apps.push_back(load_app(path, global_defaults));
     }
@@ -571,6 +601,7 @@ int run_supervisor(const std::string& instance_name = "") {
 
     std::map<pid_t, std::size_t> pid_to_index;
     for (std::size_t index = 0; index < apps.size(); ++index) {
+        debug_log("starting app " + apps[index].name);
         apps[index].pid = start_child(apps[index]);
         apps[index].start_time = std::time(nullptr);
         pid_to_index[apps[index].pid] = index;
@@ -627,6 +658,7 @@ int run_supervisor(const std::string& instance_name = "") {
         std::cerr << ", restarting\n";
 
         sleep(app.config.restart_delay);
+        debug_log("restart delay elapsed for " + app.name);
         app.pid = start_child(app);
         app.start_time = std::time(nullptr);
         pid_to_index[app.pid] = app_index;
@@ -646,9 +678,23 @@ int run_supervisor(const std::string& instance_name = "") {
 
 void print_usage(const char* argv0) {
     std::cerr
-        << "Usage: " << argv0 << " [--check] [--instance NAME]\n"
-        << "Reads global defaults from " << GRANIAN_CONFIG_PATH << " and enabled app configs from "
-        << GRANIAN_APPS_ENABLED_DIR << ".\n";
+        << "Usage: " << argv0 << " [OPTIONS]\n\n"
+        << "Granian wrapper and supervisor.\n\n"
+        << "Modes:\n"
+        << "  default                  manage all enabled apps from " << GRANIAN_APPS_ENABLED_DIR << "\n"
+        << "  --instance NAME          manage a single enabled app NAME.conf\n"
+        << "  --check                  validate config and exit without starting apps\n\n"
+        << "Options:\n"
+        << "  --check                  Validate configuration only.\n"
+        << "  --instance NAME          Use a single app from apps-enabled/NAME.conf.\n"
+        << "  --debug                  Print verbose debug information to stderr.\n"
+        << "  -h, --help               Show this help.\n\n"
+        << "Wrapper-specific config keys:\n"
+        << "  app, working-directory, venv, log-dir, log-file, error-log-file,\n"
+        << "  restart-limit, restart-window, restart-delay, env, arg\n\n"
+        << "Granian CLI mapping:\n"
+        << "  Most other key=value pairs map to Granian CLI flags.\n"
+        << "  Booleans become --key/--no-key. websockets maps to --ws/--no-ws.\n";
 }
 
 ProgramOptions parse_args(int argc, char** argv) {
@@ -657,6 +703,10 @@ ProgramOptions parse_args(int argc, char** argv) {
         const std::string arg(argv[index]);
         if (arg == "--check") {
             options.check_only = true;
+            continue;
+        }
+        if (arg == "--debug") {
+            options.debug = true;
             continue;
         }
         if (arg == "--instance") {
@@ -680,6 +730,15 @@ ProgramOptions parse_args(int argc, char** argv) {
 int main(int argc, char** argv) {
     try {
         const ProgramOptions options = parse_args(argc, argv);
+        g_debug_enabled = options.debug;
+        if (!options.instance_name.empty()) {
+            debug_log("instance mode enabled for " + options.instance_name);
+        } else {
+            debug_log("global supervisor mode enabled");
+        }
+        if (options.check_only) {
+            debug_log("check-only mode enabled");
+        }
 
         if (options.check_only) {
             validate_apps(options.instance_name);
