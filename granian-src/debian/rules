@@ -4,4 +4,4 @@
 	dh $@
 
 override_dh_installsystemd:
-	dh_installsystemd --no-restart-after-upgrade --no-restart-on-upgrade
+	dh_installsystemd --no-enable --no-start --no-restart-after-upgrade --no-restart-on-upgrade

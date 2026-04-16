@@ -7,8 +7,11 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <fstream>
+#include <grp.h>
 #include <iostream>
 #include <map>
+#include <pwd.h>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <sys/stat.h>
@@ -27,6 +30,11 @@ struct Config {
     std::string app;
     std::string working_directory;
     std::string venv;
+    std::string granian_bin;
+    std::string user;
+    std::string group;
+    bool user_configured = false;
+    bool group_configured = false;
     std::string log_dir = "/var/log/granian";
     std::string log_file;
     std::string error_log_file;
@@ -49,9 +57,18 @@ struct AppInstance {
     bool disabled = false;
 };
 
+struct ProcessIdentity {
+    uid_t uid = 0;
+    gid_t gid = 0;
+    std::string user_name;
+    std::string group_name;
+    bool has_user_name = false;
+};
+
 struct ProgramOptions {
     bool check_only = false;
     bool debug = false;
+    bool dry_run = false;
     std::string instance_name;
 };
 
@@ -86,6 +103,20 @@ bool parse_bool(const std::string& raw, bool& out) {
         return true;
     }
     return false;
+}
+
+bool is_repeatable_option(const std::string& key) {
+    static const std::set<std::string> repeatable = {
+        "env-files",
+        "reload-ignore-dirs",
+        "reload-ignore-paths",
+        "reload-ignore-patterns",
+        "reload-paths",
+        "ssl-crl",
+        "static-path-mount",
+        "static-path-route",
+    };
+    return repeatable.find(key) != repeatable.end();
 }
 
 std::string unquote(const std::string& raw) {
@@ -189,6 +220,20 @@ void add_config_value(Config& config, const std::string& source, int line_number
         config.venv = value;
         return;
     }
+    if (key == "granian-bin") {
+        config.granian_bin = value;
+        return;
+    }
+    if (key == "user") {
+        config.user = value;
+        config.user_configured = true;
+        return;
+    }
+    if (key == "group") {
+        config.group = value;
+        config.group_configured = true;
+        return;
+    }
     if (key == "log-dir") {
         config.log_dir = value;
         return;
@@ -227,6 +272,9 @@ void add_config_value(Config& config, const std::string& source, int line_number
         }
         config.env_vars.emplace_back(value.substr(0, separator), value.substr(separator + 1));
         return;
+    }
+    if (!is_repeatable_option(key)) {
+        config.options[key].clear();
     }
     config.options[key].push_back(value);
 }
@@ -344,6 +392,10 @@ bool is_executable_file(const std::string& path) {
            access(path.c_str(), X_OK) == 0;
 }
 
+bool is_absolute_path(const std::string& path) {
+    return !path.empty() && path.front() == '/';
+}
+
 std::string join_path(const std::string& lhs, const std::string& rhs) {
     if (lhs.empty()) {
         return rhs;
@@ -355,10 +407,126 @@ std::string join_path(const std::string& lhs, const std::string& rhs) {
 }
 
 std::string default_log_file(const AppInstance& instance) {
-    return join_path(instance.config.log_dir, instance.name + ".log");
+    return join_path(join_path(instance.config.log_dir, instance.name), instance.name + ".log");
+}
+
+std::string default_log_dir(const AppInstance& instance) {
+    return join_path(instance.config.log_dir, instance.name);
+}
+
+std::string runtime_dir(const AppInstance& instance) {
+    return join_path("/run/granian", instance.name);
+}
+
+std::string stdout_log_file(const AppInstance& instance) {
+    return instance.config.log_file.empty() ? default_log_file(instance) : instance.config.log_file;
+}
+
+std::string stderr_log_file(const AppInstance& instance) {
+    const std::string stdout_log = stdout_log_file(instance);
+    return instance.config.error_log_file.empty() ? stdout_log : instance.config.error_log_file;
+}
+
+bool path_is_under(const std::string& path, const std::string& parent) {
+    const std::string normalized_parent = has_suffix(parent, "/") ? parent : parent + "/";
+    return path == parent || path.compare(0, normalized_parent.size(), normalized_parent) == 0;
+}
+
+bool parse_numeric_id(const std::string& raw, unsigned long& out) {
+    if (raw.empty()) {
+        return false;
+    }
+    for (char ch : raw) {
+        if (ch < '0' || ch > '9') {
+            return false;
+        }
+    }
+    errno = 0;
+    char* end = nullptr;
+    const unsigned long value = std::strtoul(raw.c_str(), &end, 10);
+    if (errno != 0 || end == nullptr || *end != '\0') {
+        return false;
+    }
+    out = value;
+    return true;
+}
+
+ProcessIdentity resolve_identity(const AppInstance& instance) {
+    if (instance.config.group_configured && !instance.config.user_configured) {
+        throw std::runtime_error("group= requires user= for " + instance.name);
+    }
+
+    const std::string user = instance.config.user_configured ? instance.config.user : "granian";
+    const std::string group = instance.config.group_configured ? instance.config.group : "";
+    if (user.empty()) {
+        throw std::runtime_error("user= must not be empty for " + instance.name);
+    }
+
+    ProcessIdentity identity;
+    unsigned long numeric_id = 0;
+    passwd* pw = nullptr;
+    if (parse_numeric_id(user, numeric_id)) {
+        identity.uid = static_cast<uid_t>(numeric_id);
+        pw = getpwuid(identity.uid);
+    } else {
+        pw = getpwnam(user.c_str());
+        if (!pw) {
+            throw std::runtime_error("user does not exist for " + instance.name + ": " + user);
+        }
+        identity.uid = pw->pw_uid;
+    }
+
+    if (pw) {
+        identity.user_name = pw->pw_name;
+        identity.has_user_name = true;
+    } else {
+        identity.user_name = user;
+    }
+
+    if (group.empty()) {
+        if (!pw) {
+            throw std::runtime_error("user has no passwd entry, group= is required for " +
+                                     instance.name + ": " + user);
+        }
+        identity.gid = pw->pw_gid;
+        if (struct group* gr = getgrgid(identity.gid)) {
+            identity.group_name = gr->gr_name;
+        } else {
+            identity.group_name = std::to_string(identity.gid);
+        }
+    } else if (parse_numeric_id(group, numeric_id)) {
+        identity.gid = static_cast<gid_t>(numeric_id);
+        if (struct group* gr = getgrgid(identity.gid)) {
+            identity.group_name = gr->gr_name;
+        } else {
+            identity.group_name = group;
+        }
+    } else {
+        struct group* gr = getgrnam(group.c_str());
+        if (!gr) {
+            throw std::runtime_error("group does not exist for " + instance.name + ": " + group);
+        }
+        identity.gid = gr->gr_gid;
+        identity.group_name = gr->gr_name;
+    }
+
+    debug_log("resolved identity for " + instance.name + ": " + identity.user_name +
+              ":" + identity.group_name + " (" + std::to_string(identity.uid) +
+              ":" + std::to_string(identity.gid) + ")");
+    return identity;
 }
 
 std::string configured_granian_path(const Config& config) {
+    if (!config.granian_bin.empty()) {
+        if (!is_absolute_path(config.granian_bin)) {
+            throw std::runtime_error("granian-bin must be an absolute path: " + config.granian_bin);
+        }
+        if (!is_executable_file(config.granian_bin)) {
+            throw std::runtime_error("granian-bin is not executable: " + config.granian_bin);
+        }
+        return config.granian_bin;
+    }
+
     if (config.venv.empty()) {
         return GRANIAN_BIN_PATH;
     }
@@ -372,8 +540,8 @@ std::string configured_granian_path(const Config& config) {
         debug_log("using granian from virtualenv: " + candidate);
         return candidate;
     }
-    debug_log("virtualenv granian not found, falling back to " + std::string(GRANIAN_BIN_PATH));
-    return GRANIAN_BIN_PATH;
+    throw std::runtime_error("venv is configured but venv/bin/granian is missing or not executable: " +
+                             candidate + " (install granian in the venv or set granian-bin)");
 }
 
 void apply_venv_env(const Config& config) {
@@ -418,28 +586,118 @@ void validate_config(const AppInstance& instance) {
         throw std::runtime_error("venv directory does not exist for " + instance.name +
                                  ": " + instance.config.venv);
     }
+    configured_granian_path(instance.config);
+    if (!path_is_under(stdout_log_file(instance), "/var/log/granian")) {
+        throw std::runtime_error("log-file must be under /var/log/granian for " + instance.name +
+                                 ": " + stdout_log_file(instance));
+    }
+    if (!path_is_under(stderr_log_file(instance), "/var/log/granian")) {
+        throw std::runtime_error("error-log-file must be under /var/log/granian for " + instance.name +
+                                 ": " + stderr_log_file(instance));
+    }
+    resolve_identity(instance);
 }
 
-int open_log_file(const std::string& path) {
-    const int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0640);
+void ensure_directory(const std::string& path, mode_t mode, uid_t uid, gid_t gid) {
+    struct stat statbuf {};
+    if (lstat(path.c_str(), &statbuf) == 0) {
+        if (S_ISLNK(statbuf.st_mode)) {
+            throw std::runtime_error("directory path is a symlink: " + path);
+        }
+        if (!S_ISDIR(statbuf.st_mode)) {
+            throw std::runtime_error("path exists but is not a directory: " + path);
+        }
+        debug_log("directory exists: " + path + " current=" +
+                  std::to_string(statbuf.st_uid) + ":" +
+                  std::to_string(statbuf.st_gid) + " mode=" +
+                  std::to_string(statbuf.st_mode & 07777) + " target=" +
+                  std::to_string(uid) + ":" + std::to_string(gid) +
+                  " mode=" + std::to_string(mode));
+    } else if (errno == ENOENT) {
+        if (mkdir(path.c_str(), mode) != 0) {
+            throw std::runtime_error("cannot create directory " + path + ": " +
+                                     std::strerror(errno));
+        }
+        debug_log("created directory: " + path);
+    } else {
+        throw std::runtime_error("cannot stat directory " + path + ": " + std::strerror(errno));
+    }
+
+    const int dir_fd = open(path.c_str(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (dir_fd < 0) {
+        throw std::runtime_error("cannot open directory safely " + path + ": " +
+                                 std::strerror(errno));
+    }
+    if (fchown(dir_fd, uid, gid) != 0) {
+        const std::string error = std::strerror(errno);
+        close(dir_fd);
+        throw std::runtime_error("cannot chown directory " + path + ": " + error);
+    }
+    if (fchmod(dir_fd, mode) != 0) {
+        const std::string error = std::strerror(errno);
+        close(dir_fd);
+        throw std::runtime_error("cannot chmod directory " + path + ": " + error);
+    }
+    close(dir_fd);
+    debug_log("applied directory ownership and mode: " + path + " target=" +
+              std::to_string(uid) + ":" + std::to_string(gid) +
+              " mode=" + std::to_string(mode));
+}
+
+void prepare_directories(const AppInstance& instance, const ProcessIdentity& identity) {
+    ensure_directory(default_log_dir(instance), 0750, identity.uid, identity.gid);
+    ensure_directory(runtime_dir(instance), 0750, identity.uid, identity.gid);
+    debug_log("prepared directories for " + instance.name + ": " + default_log_dir(instance) +
+              " and " + runtime_dir(instance));
+}
+
+int open_log_file(const std::string& path, const ProcessIdentity& identity) {
+    struct stat statbuf {};
+    if (lstat(path.c_str(), &statbuf) == 0) {
+        if (S_ISLNK(statbuf.st_mode)) {
+            throw std::runtime_error("log file path is a symlink: " + path);
+        }
+        if (!S_ISREG(statbuf.st_mode)) {
+            throw std::runtime_error("log file path exists but is not a regular file: " + path);
+        }
+    } else if (errno != ENOENT) {
+        throw std::runtime_error("cannot stat log file " + path + ": " + std::strerror(errno));
+    }
+
+    const int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_APPEND | O_NOFOLLOW | O_CLOEXEC, 0640);
     if (fd < 0) {
         throw std::runtime_error("cannot open log file " + path + ": " + std::strerror(errno));
+    }
+    if (fstat(fd, &statbuf) != 0) {
+        const std::string error = std::strerror(errno);
+        close(fd);
+        throw std::runtime_error("cannot stat opened log file " + path + ": " + error);
+    }
+    if (!S_ISREG(statbuf.st_mode)) {
+        close(fd);
+        throw std::runtime_error("opened log path is not a regular file: " + path);
+    }
+    if (fchown(fd, identity.uid, identity.gid) != 0) {
+        const std::string error = std::strerror(errno);
+        close(fd);
+        throw std::runtime_error("cannot chown log file " + path + ": " + error);
+    }
+    if (fchmod(fd, 0640) != 0) {
+        const std::string error = std::strerror(errno);
+        close(fd);
+        throw std::runtime_error("cannot chmod log file " + path + ": " + error);
     }
     return fd;
 }
 
-void redirect_logs(const AppInstance& instance) {
-    const std::string stdout_log = instance.config.log_file.empty()
-        ? default_log_file(instance)
-        : instance.config.log_file;
-    const std::string stderr_log = instance.config.error_log_file.empty()
-        ? stdout_log
-        : instance.config.error_log_file;
+void redirect_logs(const AppInstance& instance, const ProcessIdentity& identity) {
+    const std::string stdout_log = stdout_log_file(instance);
+    const std::string stderr_log = stderr_log_file(instance);
 
-    const int stdout_fd = open_log_file(stdout_log);
+    const int stdout_fd = open_log_file(stdout_log, identity);
     int stderr_fd = stdout_fd;
     if (stderr_log != stdout_log) {
-        stderr_fd = open_log_file(stderr_log);
+        stderr_fd = open_log_file(stderr_log, identity);
     }
 
     if (dup2(stdout_fd, STDOUT_FILENO) < 0) {
@@ -465,7 +723,47 @@ void reset_signal_handlers() {
     std::signal(SIGCHLD, SIG_DFL);
 }
 
+void drop_privileges(const AppInstance& instance, const ProcessIdentity& identity) {
+    if (geteuid() != 0) {
+        if (getuid() == identity.uid && getgid() == identity.gid) {
+            debug_log("already running with target identity for " + instance.name);
+            return;
+        }
+        throw std::runtime_error("must run as root to switch identity for " + instance.name);
+    }
+
+    if (identity.has_user_name) {
+        if (initgroups(identity.user_name.c_str(), identity.gid) != 0) {
+            throw std::runtime_error("initgroups(" + identity.user_name + ") failed for " +
+                                     instance.name + ": " + std::strerror(errno));
+        }
+    } else if (setgroups(0, nullptr) != 0) {
+        throw std::runtime_error("setgroups failed for " + instance.name + ": " +
+                                 std::strerror(errno));
+    }
+    if (setgid(identity.gid) != 0) {
+        throw std::runtime_error("setgid failed for " + instance.name + ": " +
+                                 std::strerror(errno));
+    }
+    if (setuid(identity.uid) != 0) {
+        throw std::runtime_error("setuid failed for " + instance.name + ": " +
+                                 std::strerror(errno));
+    }
+    debug_log("dropped privileges for " + instance.name + " to " + identity.user_name +
+              ":" + identity.group_name);
+}
+
 pid_t start_child(const AppInstance& instance) {
+    const ProcessIdentity identity = resolve_identity(instance);
+    prepare_directories(instance, identity);
+    std::vector<std::string> final_args = build_exec_args(instance.config);
+    final_args[0] = configured_granian_path(instance.config);
+    if (g_debug_enabled) {
+        debug_log("exec path for " + instance.name + ": " + final_args[0]);
+        debug_log("stdout log for " + instance.name + ": " + stdout_log_file(instance));
+        debug_log("stderr log for " + instance.name + ": " + stderr_log_file(instance));
+    }
+
     pid_t pid = fork();
     if (pid < 0) {
         throw std::runtime_error("fork failed for " + instance.name + ": " + std::strerror(errno));
@@ -484,11 +782,10 @@ pid_t start_child(const AppInstance& instance) {
             _exit(1);
         }
         try {
-            redirect_logs(instance);
+            redirect_logs(instance, identity);
+            drop_privileges(instance, identity);
             apply_venv_env(instance.config);
             apply_env(instance.config);
-            std::vector<std::string> final_args = build_exec_args(instance.config);
-            final_args[0] = configured_granian_path(instance.config);
             std::vector<char*> exec_argv;
             exec_argv.reserve(final_args.size() + 1);
             for (auto& arg : final_args) {
@@ -656,6 +953,8 @@ int run_supervisor(const std::string& instance_name = "") {
             continue;
         }
         std::cerr << ", restarting\n";
+        std::cerr << "granian-wrapper: see log for " << app.name << ": "
+                  << stdout_log_file(app) << "\n";
 
         sleep(app.config.restart_delay);
         debug_log("restart delay elapsed for " + app.name);
@@ -673,7 +972,71 @@ int run_supervisor(const std::string& instance_name = "") {
     if (any_disabled) {
         std::cerr << "granian-wrapper: one or more apps were disabled after repeated failures\n";
     }
-    return 0;
+    return any_disabled ? 1 : 0;
+}
+
+std::string shell_quote(const std::string& value) {
+    if (value.empty()) {
+        return "''";
+    }
+    bool simple = true;
+    for (char ch : value) {
+        if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+              (ch >= '0' && ch <= '9') || ch == '/' || ch == '.' ||
+              ch == '_' || ch == '-' || ch == ':' || ch == '=')) {
+            simple = false;
+            break;
+        }
+    }
+    if (simple) {
+        return value;
+    }
+    std::string quoted = "'";
+    for (char ch : value) {
+        if (ch == '\'') {
+            quoted += "'\\''";
+        } else {
+            quoted.push_back(ch);
+        }
+    }
+    quoted += "'";
+    return quoted;
+}
+
+void print_dry_run(const std::string& instance_name = "") {
+    const auto apps = load_apps(instance_name);
+    if (apps.empty()) {
+        throw std::runtime_error("no enabled apps found in " + std::string(GRANIAN_APPS_ENABLED_DIR));
+    }
+    for (const auto& app : apps) {
+        const ProcessIdentity identity = resolve_identity(app);
+        std::vector<std::string> args = build_exec_args(app.config);
+        args[0] = configured_granian_path(app.config);
+
+        std::cout << "app=" << app.name << "\n";
+        std::cout << "config=" << app.config_path << "\n";
+        std::cout << "working-directory=" << app.config.working_directory << "\n";
+        std::cout << "venv=" << app.config.venv << "\n";
+        std::cout << "granian-bin=" << args[0] << "\n";
+        std::cout << "user=" << identity.user_name << "\n";
+        std::cout << "group=" << identity.group_name << "\n";
+        std::cout << "uid=" << identity.uid << "\n";
+        std::cout << "gid=" << identity.gid << "\n";
+        std::cout << "stdout-log=" << stdout_log_file(app) << "\n";
+        std::cout << "stderr-log=" << stderr_log_file(app) << "\n";
+        std::cout << "runtime-dir=" << runtime_dir(app) << "\n";
+        std::cout << "argv=";
+        for (std::size_t index = 0; index < args.size(); ++index) {
+            if (index > 0) {
+                std::cout << " ";
+            }
+            std::cout << shell_quote(args[index]);
+        }
+        std::cout << "\n";
+        if (&app != &apps.back()) {
+            std::cout << "\n";
+        }
+    }
 }
 
 void print_usage(const char* argv0) {
@@ -683,15 +1046,30 @@ void print_usage(const char* argv0) {
         << "Modes:\n"
         << "  default                  manage all enabled apps from " << GRANIAN_APPS_ENABLED_DIR << "\n"
         << "  --instance NAME          manage a single enabled app NAME.conf\n"
-        << "  --check                  validate config and exit without starting apps\n\n"
+        << "  --check                  validate config and exit without starting apps\n"
+        << "  --dry-run                print resolved app configuration and command\n\n"
         << "Options:\n"
         << "  --check                  Validate configuration only.\n"
+        << "  --dry-run, --print-command\n"
+        << "                           Print resolved configuration and command only.\n"
         << "  --instance NAME          Use a single app from apps-enabled/NAME.conf.\n"
         << "  --debug                  Print verbose debug information to stderr.\n"
         << "  -h, --help               Show this help.\n\n"
         << "Wrapper-specific config keys:\n"
-        << "  app, working-directory, venv, log-dir, log-file, error-log-file,\n"
-        << "  restart-limit, restart-window, restart-delay, env, arg\n\n"
+        << "  app, working-directory, venv, granian-bin, user, group, log-dir,\n"
+        << "  log-file, error-log-file, restart-limit, restart-window,\n"
+        << "  restart-delay, env, arg\n\n"
+        << "Virtualenv:\n"
+        << "  venv= requires executable venv/bin/granian unless granian-bin is set.\n"
+        << "  granian-bin must be an absolute executable path.\n\n"
+        << "Log policy:\n"
+        << "  log-file and error-log-file must stay under /var/log/granian.\n\n"
+        << "Privilege model:\n"
+        << "  Child processes run as granian:granian by default.\n"
+        << "  user= without group= uses the user's primary group.\n"
+        << "  group= without user= is rejected during --check.\n\n"
+        << "Default logs:\n"
+        << "  /var/log/granian/<app-name>/<app-name>.log\n\n"
         << "Granian CLI mapping:\n"
         << "  Most other key=value pairs map to Granian CLI flags.\n"
         << "  Booleans become --key/--no-key. websockets maps to --ws/--no-ws.\n";
@@ -703,6 +1081,10 @@ ProgramOptions parse_args(int argc, char** argv) {
         const std::string arg(argv[index]);
         if (arg == "--check") {
             options.check_only = true;
+            continue;
+        }
+        if (arg == "--dry-run" || arg == "--print-command") {
+            options.dry_run = true;
             continue;
         }
         if (arg == "--debug") {
@@ -739,7 +1121,14 @@ int main(int argc, char** argv) {
         if (options.check_only) {
             debug_log("check-only mode enabled");
         }
+        if (options.dry_run) {
+            debug_log("dry-run mode enabled");
+        }
 
+        if (options.dry_run) {
+            print_dry_run(options.instance_name);
+            return 0;
+        }
         if (options.check_only) {
             validate_apps(options.instance_name);
             return 0;

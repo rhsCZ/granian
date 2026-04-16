@@ -1,0 +1,66 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Format: 1.8
+Date: Thu, 16 Apr 2026 20:25:00 +0200
+Source: granian
+Built-For-Profiles: noudeb
+Architecture: source
+Version: 1.0.7
+Distribution: noble
+Urgency: medium
+Maintainer: Codex <codex@example.com>
+Changed-By: Jan Hodouš <rhscz@post.cz>
+Changes:
+ granian (1.0.7) noble; urgency=medium
+ .
+   * Add per-application user= and group= support with root supervisor
+     privilege dropping for Granian child processes.
+   * Use granian:granian as the default child identity, use the user's
+     primary group when only user= is set, and reject group= without user=.
+   * Move default logs to /var/log/granian/<app>/<app>.log and prepare
+     per-app log and runtime directories with the target owner and mode.
+   * Re-apply per-app log/runtime directory ownership and mode at start.
+   * Make normal Granian options last-wins while keeping documented
+     repeatable options append-only.
+   * Add venv fail-fast validation, granian-bin override, and
+     --dry-run/--print-command diagnostics.
+   * Restrict explicit log-file and error-log-file paths to /var/log/granian.
+   * Harden log and directory handling against symlinks and non-regular
+     log files.
+   * Return a failing supervisor status when apps are disabled after repeated
+     failures.
+   * Update logrotate for new and legacy log paths with a 20M size limit.
+   * Prevent automatic systemd service enable/start/restart during package
+     installation and upgrades.
+   * Update systemd units, default configuration, example configuration,
+     and README documentation for the new privilege and logging model.
+Checksums-Sha1:
+ fb4fad3c2c08d5cbf4159adcf8ea495729b9ddae 1384 granian_1.0.7.dsc
+ 3d8c91039c66aef7ea2dbfa487f1a7d44745394c 18160 granian_1.0.7.tar.xz
+ ac091a3ac496a4052cc8ee987e3ca5a3308fcfc9 7146 granian_1.0.7_source.buildinfo
+Checksums-Sha256:
+ 6b23ab628ef0826fe3d9d71711527b8cc91673d223e0a52308e9ff7caab60134 1384 granian_1.0.7.dsc
+ cf471c1d0dd8cd1aa228b851ef779f7158e6182f768f18783cbd3cd755120488 18160 granian_1.0.7.tar.xz
+ 412bc7fe5cfe6f417bec9cfe1f1f96b3a1f31216c5460afb70fc3897eff27981 7146 granian_1.0.7_source.buildinfo
+Files:
+ 3e86633e0fa96cd753687e7b5a463664 1384 net optional granian_1.0.7.dsc
+ 0ce2215c67aff3a5ded7f07cb7fe9784 18160 net optional granian_1.0.7.tar.xz
+ 2e66612d7dbd7293e444c49e0b50d851 7146 net optional granian_1.0.7_source.buildinfo
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCgAdFiEEBA4y7RgfpWqP10UabjGunhICqWAFAmnhK+gACgkQbjGunhIC
+qWBiLhAAhh3E0Kd2zllrtAkEXKarTn8FRPETAAqLcwQy/K+7jEWuhG7hv798XVRO
+jpbsIZHNffvfcrrUSuZ34ebgPCqchAuFpMVpUsqJkL/2yUzRw2+gTFUbvPcKQAlq
+TWz65XOjebG6JIpIwCIQFDMw7ZV+zS59Iy+GMG2geV8rJXVInALePpNMwq/1mIIt
+TduD5sqaeixDchdU9ShQRMjE8+LXn2A5prHYDF81FUSQgAqPH6+8BYa9Dlj9Ed2y
+qfkamN1AXI4CxPlw3FQKsrXELDl8ij3pbSByikEjLUmaKOcJa/QiAXh6b77f4ue4
+yTuEDp6/H8oYuRBN5LMi+r1VSdS1nm3Yb3LKTfW2PMLcB+z4UIe0UnutsB3CHi+v
+W3691HhRgWZ4/FzP2ghHzywTg+pK4X3mdKFcMHQBVXJVyrJKxXZ0t5rGaA99YJVW
+3+MYvzlrIfdwGjTA9mi+zEQGRatXVbAQ3goxyekNskE83ryGjUwuORcwX20a/A3d
+xGH3cjNVBrLwHzXjIwcQ3Km6TWaN/rMzHKZdDKTs4gl30j2ZqHIPuXTtss0G8Fa0
+VgzL7m7+Ec3GHiDok3XGflZML7ATCn1UXJFn0gs4ZWjmRMhe6vCr32xB2UK1Ondn
+01yq+r3B1MnTqqRMcWoA0euOYTwsFmRTtrTRsP0qd055VgBZhZk=
+=uFRK
+-----END PGP SIGNATURE-----

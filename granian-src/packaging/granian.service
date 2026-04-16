@@ -6,8 +6,6 @@ Conflicts=granian@.service
 
 [Service]
 Type=simple
-User=granian
-Group=granian
 WorkingDirectory=/var/lib/granian
 EnvironmentFile=-/etc/default/granian
 ExecStart=/usr/sbin/granian-wrapper

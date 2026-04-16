@@ -25,9 +25,10 @@ The installed supervisor:
 - loads each enabled application config
 - validates wrapper-specific settings like `working-directory` and `venv`
 - starts one Granian process per enabled application
+- drops each child process to the configured Unix user/group
 - restarts failed applications with restart throttling to avoid endless loops
-- writes supervisor logs to `/var/log/granian/supervisor.log`
-- writes per-app stdout/stderr logs to `/var/log/granian/<app>.log` by default
+- writes supervisor logs to the systemd journal
+- writes per-app stdout/stderr logs to `/var/log/granian/<app>/<app>.log` by default
 
 This gives you a workflow similar in spirit to `a2ensite`/`a2dissite`, but for
 Granian-backed Python applications.
@@ -88,6 +89,7 @@ After install:
 - the package creates the `granian` system user and group
 - it installs the service unit, configs and helper binaries
 - it does not ship enabled applications by default
+- the service is not automatically enabled or started
 - service restart during upgrades is intentionally not forced
 
 If needed after an upgrade:
@@ -154,16 +156,20 @@ Format rules:
 - comments start with `#`
 - most keys map to Granian CLI as `--key value`
 - booleans map to `--key` / `--no-key`
-- repeated keys are supported for repeatable options
+- normal keys are last-wins, so per-app values override global defaults
+- repeated keys are supported only for documented repeatable options
 
 Wrapper-specific keys:
 
 - `app`: required target in `module:object` form
 - `working-directory`: directory used before spawning Granian
-- `venv`: virtualenv root; if `venv/bin/granian` exists, it is preferred
+- `venv`: virtualenv root; requires executable `venv/bin/granian`
+- `granian-bin`: explicit absolute path to a Granian executable
 - `log-dir`: default log directory, usually `/var/log/granian`
-- `log-file`: stdout log file override
-- `error-log-file`: stderr log file override
+- `log-file`: stdout log file override; must be under `/var/log/granian`
+- `error-log-file`: stderr log file override; must be under `/var/log/granian`
+- `user`: Unix user for the Granian child process
+- `group`: Unix group for the Granian child process; requires `user`
 - `restart-limit`: max failures allowed in `restart-window`
 - `restart-window`: rolling failure window in seconds
 - `restart-delay`: sleep before attempting restart
@@ -175,6 +181,31 @@ Granian-specific keys:
 - most options from `granian --help` work directly as config keys
 - both `snake_case` and `snake-case` are accepted
 - `websockets` is translated to Granian's `--ws` / `--no-ws`
+- repeatable Granian keys append values: `env-files`, `static-path-route`,
+  `static-path-mount`, `reload-paths`, `reload-ignore-dirs`,
+  `reload-ignore-patterns`, `reload-ignore-paths`, `ssl-crl`
+
+## Process Identity
+
+The systemd supervisor starts as root so it can prepare per-app runtime paths
+and then drop privileges independently for each app. Upstream Granian child
+processes should not remain root.
+
+Default behavior:
+
+- no `user` or `group` configured: child runs as `granian:granian`
+- `user` configured without `group`: child uses the user's primary group
+- `group` configured without `user`: configuration check fails
+
+Example:
+
+```ini
+user = myapp
+group = myapp
+```
+
+The same keys can be placed in `/etc/granian/granian.conf` as global defaults
+or in a per-app config to override the defaults.
 
 ## Example Application Config
 
@@ -188,6 +219,8 @@ host = 127.0.0.1
 port = 8000
 interface = asgi
 workers = 2
+user = myapp
+group = myapp
 ```
 
 A more complete example is shipped in:
@@ -201,16 +234,39 @@ In the source tree, see:
 That file is intentionally verbose and serves as a reference for supported
 wrapper keys and common Granian options.
 
+For Unix sockets, prefer an app-specific path under the runtime directory:
+
+```ini
+uds = /run/granian/myapp/myapp.sock
+uds-permissions = 660
+```
+
+The wrapper prepares `/run/granian/myapp/` with ownership matching the app's
+target `user`/`group` before dropping privileges.
+
 ## Logging
 
 Supervisor logging:
 
-- `/var/log/granian/supervisor.log`
+- `journalctl -u granian.service`
+- `journalctl -u granian@myapp.service`
 
 Per-app logging:
 
-- default stdout/stderr: `/var/log/granian/<app>.log`
-- optional stderr override: `/var/log/granian/<app>.err.log`
+- default stdout/stderr: `/var/log/granian/<app>/<app>.log`
+- optional stderr override: `/var/log/granian/<app>/<app>.err.log`
+
+The `<app>` name is taken from the enabled config file name without `.conf`.
+For `/etc/granian/apps-enabled/myapp.conf`, the default log file is:
+
+```text
+/var/log/granian/myapp/myapp.log
+```
+
+The supervisor creates the app-specific log directory and sets ownership to the
+target `user`/`group` before starting the child process. Explicit `log-file`
+and `error-log-file` settings are respected only when they stay under
+`/var/log/granian`.
 
 The package also installs:
 
@@ -218,7 +274,10 @@ The package also installs:
 
 Current logrotate behavior:
 
+- covers the current `/var/log/granian/<app>/*.log` layout
+- also covers legacy `/var/log/granian/*.log` files
 - daily rotation
+- rotation before a log grows beyond `20M`
 - 14 retained files
 - compression enabled
 - `copytruncate`
@@ -275,6 +334,10 @@ the same time for the same installation.
 The package does not automatically create enabled applications. You decide what
 to enable and whether to run them through the global unit or individual units.
 
+The supervisor unit intentionally does not set `User=`/`Group=`. The wrapper
+must start as root so it can prepare `/var/log/granian/<app>/` and
+`/run/granian/<app>/`, then drop each child process to the configured identity.
+
 ## Virtualenv Support
 
 Per-app virtualenv usage is supported through:
@@ -287,12 +350,18 @@ Behavior:
 
 - the wrapper sets `VIRTUAL_ENV`
 - prepends `venv/bin` to `PATH`
-- uses `venv/bin/granian` if present
-- otherwise falls back to `/usr/bin/granian`
+- requires `venv/bin/granian` when `venv` is set
+- uses `granian-bin = /absolute/path` if an explicit executable is needed
 
 This is useful when the application and its Python dependencies are managed in
 their own venv, while the Debian package still provides the service wrapper and
 system integration.
+
+Diagnose the resolved command without starting the app:
+
+```sh
+sudo granian-wrapper --dry-run --instance myapp
+```
 
 ## Helper Commands
 
@@ -385,6 +454,8 @@ Directory roles:
 - upstream Granian is still responsible for serving the Python application
 - if a specific Granian option is not conveniently expressed as `key = value`,
   use repeatable `arg = ...` lines
+- `--dry-run` and `--print-command` print the resolved command, log paths and
+  target identity without starting child processes
 
 ## Summary
 
@@ -394,5 +465,6 @@ Use this package when you want:
 - multiple apps under one supervisor service
 - enable/disable helpers for app configs
 - log files under `/var/log/granian`
+- per-app Unix users and groups
 - systemd integration and package-managed defaults
 - upstream Granian left intact as the actual Python app server

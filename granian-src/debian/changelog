@@ -1,3 +1,29 @@
+granian (1.0.7) noble; urgency=medium
+
+  * Add per-application user= and group= support with root supervisor
+    privilege dropping for Granian child processes.
+  * Use granian:granian as the default child identity, use the user's
+    primary group when only user= is set, and reject group= without user=.
+  * Move default logs to /var/log/granian/<app>/<app>.log and prepare
+    per-app log and runtime directories with the target owner and mode.
+  * Re-apply per-app log/runtime directory ownership and mode at start.
+  * Make normal Granian options last-wins while keeping documented
+    repeatable options append-only.
+  * Add venv fail-fast validation, granian-bin override, and
+    --dry-run/--print-command diagnostics.
+  * Restrict explicit log-file and error-log-file paths to /var/log/granian.
+  * Harden log and directory handling against symlinks and non-regular
+    log files.
+  * Return a failing supervisor status when apps are disabled after repeated
+    failures.
+  * Update logrotate for new and legacy log paths with a 20M size limit.
+  * Prevent automatic systemd service enable/start/restart during package
+    installation and upgrades.
+  * Update systemd units, default configuration, example configuration,
+    and README documentation for the new privilege and logging model.
+
+ -- Jan Hodouš <rhscz@post.cz>  Thu, 16 Apr 2026 20:25:00 +0200
+
 granian (1.0.6) noble; urgency=medium
 
   * Create /var/log/granian during package installation.
